@@ -1,0 +1,88 @@
+<!DOCTYPE html> 
+<html lang='en-US' xml:lang='en-US'> 
+<head><title>AMdEX Fieldlab Documentation</title> 
+<meta charset='utf-8' /> 
+<meta content='TeX4ht (https://tug.org/tex4ht/)' name='generator' /> 
+<meta content='width=device-width,initial-scale=1' name='viewport' /> 
+<link href='main.css' rel='stylesheet' type='text/css' /> 
+<meta content='main.tex' name='src' /> 
+</head><body>
+   <div class='maketitle'>
+                                                                  
+
+                                                                  
+                                                                  
+
+                                                                  
+
+<h2 class='titleHead'>AMdEX Fieldlab Documentation</h2>
+<div class='author'><span class='cmr-12'>Merrick Oost-Rosengren</span></div><br />
+<div class='date'><span class='cmr-12'>June 2023</span></div>
+   </div>
+   <h3 class='sectionHead' id='documentation'><span class='titlemark'>1   </span> <a id='x1-10001'></a>Documentation</h3>
+<!-- l. 14 --><p class='noindent'>The documentation of the code can be found at
+<a class='url' href='https://amdex-fieldlab.github.io/documentation/index.html'><span class='cmtt-10'>https://amdex-fieldlab.github.io/documentation/index.html</span></a>
+</p><!-- l. 16 --><p class='noindent'>
+</p>
+   <h3 class='sectionHead' id='main-components'><span class='titlemark'>2   </span> <a id='x1-20002'></a>Main Components</h3>
+<!-- l. 17 --><p class='noindent'>
+</p>
+   <h4 class='subsectionHead' id='amdexproperties'><span class='titlemark'>2.1   </span> <a id='x1-30002.1'></a>AmdexProperties</h4>
+<!-- l. 18 --><p class='noindent'>The AmdexProperties object contains all the properties needed to run the fieldlab
+components, and can also be used to access properties needed for the specific
+implementation of the node.
+</p><!-- l. 20 --><p class='indent'>   The Amdex Properties can contain single properties or classes with their
+initialization files.
+</p>
+   <h5 class='subsubsectionHead' id='required-properties'><span class='titlemark'>2.1.1   </span> <a id='x1-40002.1.1'></a>Required Properties</h5>
+                                                                  
+
+                                                                  
+   <pre class='verbatim' id='verbatim-1'>
+# Identity of this node
+node.identity.id = nodeId
+node.identity.member = memberId
+node.identity.consortium = consortiumName
+node.identity.type = Executor
+
+# Passwords
+passwords.class = eu.amdexfieldlab.core.util.security.PropertiesPasswords
+passwords.path = passwords.properties
+
+# Backbone settings
+backbone.protocol.prototypekafka.class = eu.amdexfieldlab.prototype.kafka.KafkaBackbone
+backbone.protocol.prototypekafka.signing.class = eu.amdexfieldlab.prototype.SimulatedSigning
+backbone.protocol.prototypekafka.pollfrequency = 1000
+backbone.protocol.prototypekafka.timeout = 1000
+backbone.protocol.prototypekafka.propertiesfile = kafka.properties
+backbone.protocol.prototypekafka.trace = true
+
+# Certificate Store Settings
+certificates.store.class = eu.amdexfieldlab.prototype.kafka.KafkaPublicCertificateStore
+certificates.store.topic = Certificates
+
+</pre>
+<!-- l. 45 --><p class='nopar'>
+</p>
+   <h4 class='subsectionHead' id='backbone'><span class='titlemark'>2.2   </span> <a id='x1-50002.2'></a>Backbone</h4>
+<!-- l. 47 --><p class='noindent'>
+</p>
+   <h4 class='subsectionHead' id='certificatemanager'><span class='titlemark'>2.3   </span> <a id='x1-60002.3'></a>CertificateManager</h4>
+<!-- l. 48 --><p class='noindent'>
+</p>
+   <h3 class='sectionHead' id='helper-components'><span class='titlemark'>3   </span> <a id='x1-70003'></a>Helper Components</h3>
+                                                                  
+
+                                                                  
+<!-- l. 49 --><p class='noindent'>
+</p>
+   <h4 class='subsectionHead' id='certificateutils'><span class='titlemark'>3.1   </span> <a id='x1-80003.1'></a>CertificateUtils</h4>
+<!-- l. 50 --><p class='noindent'>
+</p>
+   <h4 class='subsectionHead' id='asynchronousmanager'><span class='titlemark'>3.2   </span> <a id='x1-90003.2'></a>AsynchronousManager</h4>
+<!-- l. 51 --><p class='noindent'>
+</p>
+   <h4 class='subsectionHead' id='json'><span class='titlemark'>3.3   </span> <a id='x1-100003.3'></a>Json</h4>
+    
+</body> 
+</html>
