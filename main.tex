@@ -1,0 +1,50 @@
+\documentclass{article}
+\usepackage{graphicx} % Required for inserting images
+
+\title{AMdEX Fieldlab Documentation}
+\author{Merrick Oost-Rosengren}
+\date{June 2023}
+
+\begin{document}
+
+\maketitle
+
+\section{Main Components}
+\subsection{AmdexProperties}
+The AmdexProperties object contains all the properties needed to run the fieldlab components, and can also be used to access properties needed for the specific implementation of the node.
+
+The Amdex Properties can contain single properties or classes with their initialization files.
+\subsubsection{Required Properties}
+\begin{verbatim}
+# Identity of this node
+node.identity.id = nodeId
+node.identity.member = memberId
+node.identity.consortium = consortiumName
+node.identity.type = Executor
+
+# Passwords
+passwords.class = eu.amdexfieldlab.core.util.security.PropertiesPasswords
+passwords.path = passwords.properties
+
+# Backbone settings
+backbone.protocol.prototypekafka.class = eu.amdexfieldlab.prototype.kafka.KafkaBackbone
+backbone.protocol.prototypekafka.signing.class = eu.amdexfieldlab.prototype.SimulatedSigning
+backbone.protocol.prototypekafka.pollfrequency = 1000
+backbone.protocol.prototypekafka.timeout = 1000
+backbone.protocol.prototypekafka.propertiesfile = kafka.properties
+backbone.protocol.prototypekafka.trace = true
+
+# Certificate Store Settings
+certificates.store.class = eu.amdexfieldlab.prototype.kafka.KafkaPublicCertificateStore
+certificates.store.topic = Certificates
+
+\end{verbatim}
+\subsection{Backbone}
+\subsection{CertificateManager}
+\section{Helper Components}
+\subsection{CertificateUtils}
+\subsection{AsynchronousManager}
+\subsection{Json}
+
+
+\end{document}
