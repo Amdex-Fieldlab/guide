@@ -13,6 +13,106 @@
 \section{Documentation}
 The documentation of the code can be found at \url{https://amdex-fieldlab.github.io/documentation/index.html}
 
+\section{Building an Application for deployment}
+We will use the UNL application for example code.
+\subsection{Build application}
+Use your prefered build tool to Build the application into one application.jar file (or one amdex.jar and one application.jar)
+
+UNL Example (Maven):
+\begin{verbatim}
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-assembly-plugin</artifactId>
+        <version>3.6.0</version>
+        <executions>
+            <execution>
+                <phase>package</phase>
+                <goals>
+                    <goal>single</goal>
+                </goals>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>
+                                eu.amdexfieldlab.core.runtime.StartAmdexFieldlabKt
+                            </mainClass>
+                        </manifest>
+                    </archive>
+                    <descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
+                </configuration>
+            </execution>
+        </executions>
+    </plugin>
+\end{verbatim}
+Set the <mainClass> element to the default startup class. Note: we won´t be using this to start it, but you could.
+Run "mvn package", you should now have a jar with dependencies in the target directory (e.g. core-1.0-SNAPSHOT-jar-with-dependencies.jar)
+
+\subsection{Build Script}
+Create a build directory and put in the build script, the build script should copy all relevant files into a subdirectory called app.
+\begin{verbatim}
+# Clean app directory
+rm -rf app-vu
+mkdir app-vu
+# add property files and demo https key for webserver
+cp ../../../src/main/resources/amdex.properties app-vu
+cp ../../../src/main/resources/unl.properties app-vu
+cp ../../../src/main/resources/kafka.properties app-vu
+cp ../../../src/main/resources/vu.properties app-vu/institution.properties
+cp ../../../src/main/resources/passwords.properties app-vu
+cp ../../../src/main/resources/demoWebServerkeyStore.jks app-vu
+# add amdex.jar
+cp ../../../target/core-1.0-SNAPSHOT-jar-with-dependencies.jar app-vu/amdex.jar
+# add frontend files
+cp -r ../frontend app-vu/frontend
+
+docker build -f dockerfile-vu.yml -t vu_executor .
+\end{verbatim}
+\subsection{Docker files}
+Create the dockerfile (dockerfile-vu.yml):
+\begin{verbatim}
+FROM eclipse-temurin:latest
+RUN mkdir /opt/app
+COPY app/* /opt/app
+CMD cd /opt/app;java -cp amdex.jar eu.amdexfieldlab.demo.unl.startdemo.MainInsitutionKt
+\end{verbatim}
+Create the docker-compose file (docker-compose-vu.yml):
+\begin{verbatim}
+version: '3'
+
+services:
+    db:
+      image: mysql
+      container_name: db
+      # NOTE: use of "mysql_native_password" is not recommended: https://dev.mysql.com/doc/refman/8.0/en/upgrading-from-previous-series.html#upgrade-caching-sha2-password
+      # (this is just an example, not intended to be a production configuration)
+      command: --default-authentication-plugin=mysql_native_password
+      restart: always
+      env_file:
+        - 'variables.env'
+    institution_executor:
+      image: vu_executor
+      container_name: institution_executor
+      build:
+        dockerfile: dockerfile-vu.yml
+      ports:
+        - 443:8441
+      depends_on:
+        - db
+      env_file:
+        - 'variables.env'
+\end{verbatim}
+Create a variables.env file to share passwords between the servers (application server, database server), and define the properties file which is used to start the application. The startup delay is used to make sure the application is not started before relevant other servers are started:
+\begin{verbatim}
+MYSQL_ROOT_USER: root
+MYSQL_ROOT_PASSWORD: example
+AMDEX_PROPERTIES: institution.properties
+STARTUP_DELAY: 3000
+\end{verbatim}
+\subsection{Start the application}
+The command to startup the system is: "docker compose -f docker-compose-vu.yml up". It is advice to put this in a script for easy use (up.bat / up.sh)
+
 \section{Main Components}
 \subsection{AmdexProperties}
 The AmdexProperties object contains all the properties needed to run the fieldlab components, and can also be used to access properties needed for the specific implementation of the node.
@@ -46,8 +146,63 @@ certificates.store.topic = Certificates
 \subsection{Backbone}
 \subsection{CertificateManager}
 \section{Helper Components}
+
+\section{eu.amdex.util}
+Contains helper functions and object for common activities. 
+\subsection{Constants}
+Contains some useful constants. Specifically for handling null and undefined values in Data, which should not be interpreted as null values by the code. These can be assigned to an Any, even though a null can not be assigned to an Any. 
+\subsection{object AsynchronousManager}
+Contains a simple Thread pool, and allows asynchronous running of Runnables and Lambdas. Care should be taken to not reuse a threads after the lambda or the Runnable.run() method has finished, since at that point it is put back in the Thread pool.
+\subsection{ExceptionUtils}
+Contains methods to handle expected exceptions. The most useful being ignoreException, which returns null when there is an exception, and ignoreExceptionBoolean, which returns false when there is an exception. \\
+\begin{verbatim}
+Example:
+val x : Any = "ABC"
+val y : Int? = ignoreException {x as Int}
+
+result: y = null    
+\end{verbatim}
+\subsection{Log}
+Contains global functions for logging, the logger that is used can be replaced during runtime. The system starts with a logger which writes to the console, and remembers everything that is logged. Once the desired logger component is loaded, the default log is replaced with this, and the desired logger can retrieve the earlier messages to also log itself\\
+The methods in this file all call the same method in the active logger
+\subsubsection{class LogMonitor}
+Connects the active thread to a specific named log
+\subsubsection{method todo}
+Writes a todo message to the log without throwing an exception
+\subsection{GlobalFunctions}
+Contains simple helper functions
+\subsubsection{function mutableMapOfSkipNullValues}
+Creates a MutableMap of the pairs without any pair which has a null value as its key
+\subsubsection{function mapOfSkipNullValues}
+Creates a Map of the pairs without any pair which has a null value as its key
+\subsubsection{function cast}
+Does a checked cast\\
+\begin{verbatim}
+Example:
+val x : Any = 10
+val y : Int = cast(x)
+val z = cast(x) as Int    
+\end{verbatim}
+\subsection{MappedSet and IMappedSet}
+Turns a Collection of objects into a map, where the key is calculated based on the object.\\
+Use the refresh functions when the contents of objects are changed in a way that changes its key.
+\subsection{PreparedStatementExtensions}
+Contains extension functions to PreparedStatement
+\subsubsection{function setAll}
+Assigns values to the question marks in the PreparedStatement in the order of the question marks, and deals with using the correct function in PreparedStatement
+\subsubsection{function setAny}
+Assigns values to a specific question mark in the PreparedStatement, and deals with using the correct function in PreparedStatement
+\subsection{ResultSetExtensions}
+Contains extension functions to ResultSet
+\subsubsection{forEach and forEachIndexed}
+Executes a lambda on each entry in the resultset. 
+\subsection{toDataSet}
+Turns the ResultSet in a DataSet, which can be stored, manipulated and/or transferred to another Node.
+\subsection{StringExtensions}
+Constains extension functions to String
+\subsubsection{dropIncluding}
+Removes the first or last characters of a String until it finds a specific substring. This substring is also removed.
 \subsection{CertificateUtils}
-\subsection{AsynchronousManager}
 \subsection{Json}
 
 
