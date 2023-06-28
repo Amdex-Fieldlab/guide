@@ -24,21 +24,154 @@
 <a class='url' href='https://amdex-fieldlab.github.io/documentation/index.html'><span class='cmtt-10'>https://amdex-fieldlab.github.io/documentation/index.html</span></a>
 </p><!-- l. 16 --><p class='noindent'>
 </p>
-   <h3 class='sectionHead' id='main-components'><span class='titlemark'>2   </span> <a id='x1-20002'></a>Main Components</h3>
-<!-- l. 17 --><p class='noindent'>
+   <h3 class='sectionHead' id='building-an-application-for-deployment'><span class='titlemark'>2   </span> <a id='x1-20002'></a>Building an Application for deployment</h3>
+<!-- l. 17 --><p class='noindent'>We will use the UNL application for example code.
 </p>
-   <h4 class='subsectionHead' id='amdexproperties'><span class='titlemark'>2.1   </span> <a id='x1-30002.1'></a>AmdexProperties</h4>
-<!-- l. 18 --><p class='noindent'>The AmdexProperties object contains all the properties needed to run the fieldlab
-components, and can also be used to access properties needed for the specific
-implementation of the node.
-</p><!-- l. 20 --><p class='indent'>   The Amdex Properties can contain single properties or classes with their
-initialization files.
-</p>
-   <h5 class='subsubsectionHead' id='required-properties'><span class='titlemark'>2.1.1   </span> <a id='x1-40002.1.1'></a>Required Properties</h5>
+   <h4 class='subsectionHead' id='build-application'><span class='titlemark'>2.1   </span> <a id='x1-30002.1'></a>Build application</h4>
+<!-- l. 19 --><p class='noindent'>Use your prefered build tool to Build the application into one application.jar file (or
+one amdex.jar and one application.jar)
+</p><!-- l. 21 --><p class='indent'>   UNL Example (Maven):
                                                                   
 
                                                                   
+</p>
    <pre class='verbatim' id='verbatim-1'>
+      &lt;plugin&gt;
+        &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;
+        &lt;artifactId&gt;maven-assembly-plugin&lt;/artifactId&gt;
+        &lt;version&gt;3.6.0&lt;/version&gt;
+        &lt;executions&gt;
+            &lt;execution&gt;
+                &lt;phase&gt;package&lt;/phase&gt;
+                &lt;goals&gt;
+                    &lt;goal&gt;single&lt;/goal&gt;
+                &lt;/goals&gt;
+                &lt;configuration&gt;
+                    &lt;archive&gt;
+                        &lt;manifest&gt;
+                            &lt;mainClass&gt;
+                                eu.amdexfieldlab.core.runtime.StartAmdexFieldlabKt
+                            &lt;/mainClass&gt;
+                        &lt;/manifest&gt;
+                    &lt;/archive&gt;
+                    &lt;descriptorRefs&gt;
+                        &lt;descriptorRef&gt;jar-with-dependencies&lt;/descriptorRef&gt;
+                    &lt;/descriptorRefs&gt;
+                &lt;/configuration&gt;
+            &lt;/execution&gt;
+        &lt;/executions&gt;
+    &lt;/plugin&gt;
+</pre>
+<!-- l. 48 --><p class='nopar'> Set the ¡mainClass¿ element to the default startup class. Note: we won<span class='tcrm-1000'>´</span>t be using
+this to start it, but you could. Run ”mvn package”, you should now have a jar with
+dependencies in the target directory (e.g. core-1.0-SNAPSHOT-jar-with-dependencies.jar)
+</p><!-- l. 52 --><p class='noindent'>
+</p>
+   <h4 class='subsectionHead' id='build-script'><span class='titlemark'>2.2   </span> <a id='x1-40002.2'></a>Build Script</h4>
+<!-- l. 53 --><p class='noindent'>Create a build directory and put in the build script, the build script should copy all
+relevant files into a subdirectory called app.
+                                                                  
+
+                                                                  
+</p>
+   <pre class='verbatim' id='verbatim-2'>
+# Clean app directory
+rm -rf app-vu
+mkdir app-vu
+# add property files and demo https key for webserver
+cp ../../../src/main/resources/amdex.properties app-vu
+cp ../../../src/main/resources/unl.properties app-vu
+cp ../../../src/main/resources/kafka.properties app-vu
+cp ../../../src/main/resources/vu.properties app-vu/institution.properties
+cp ../../../src/main/resources/passwords.properties app-vu
+cp ../../../src/main/resources/demoWebServerkeyStore.jks app-vu
+# add amdex.jar
+cp ../../../target/core-1.0-SNAPSHOT-jar-with-dependencies.jar app-vu/amdex.jar
+# add frontend files
+cp -r ../frontend app-vu/frontend
+
+docker build -f dockerfile-vu.yml -t vu_executor .
+</pre>
+<!-- l. 71 --><p class='nopar'>
+</p>
+   <h4 class='subsectionHead' id='docker-files'><span class='titlemark'>2.3   </span> <a id='x1-50002.3'></a>Docker files</h4>
+<!-- l. 73 --><p class='noindent'>Create the dockerfile (dockerfile-vu.yml):
+                                                                  
+
+                                                                  
+</p>
+   <pre class='verbatim' id='verbatim-3'>
+FROM eclipse-temurin:latest
+RUN mkdir /opt/app
+COPY app/* /opt/app
+CMD cd /opt/app;java -cp amdex.jar eu.amdexfieldlab.demo.unl.startdemo.MainInsitutionKt
+</pre>
+<!-- l. 79 --><p class='nopar'> Create the docker-compose file (docker-compose-vu.yml):
+                                                                  
+
+                                                                  
+</p>
+   <pre class='verbatim' id='verbatim-4'>
+version: ’3’
+
+services:
+    db:
+      image: mysql
+      container_name: db
+      # NOTE: use of "mysql_native_password" is not recommended: https://dev.mysql.com/doc/refman/8.0/en/upgrading-from-previous-series.html#upgrade-caching-sha2-password
+      # (this is just an example, not intended to be a production configuration)
+      command: --default-authentication-plugin=mysql_native_password
+      restart: always
+      env_file:
+        - ’variables.env’
+    institution_executor:
+      image: vu_executor
+      container_name: institution_executor
+      build:
+        dockerfile: dockerfile-vu.yml
+      ports:
+        - 443:8441
+      depends_on:
+        - db
+      env_file:
+        - ’variables.env’
+</pre>
+<!-- l. 105 --><p class='nopar'> Create a variables.env file to share passwords between the servers (application
+server, database server), and define the properties file which is used to start the
+application. The startup delay is used to make sure the application is not started
+before relevant other servers are started:
+                                                                  
+
+                                                                  
+</p>
+   <pre class='verbatim' id='verbatim-5'>
+MYSQL_ROOT_USER: root
+MYSQL_ROOT_PASSWORD: example
+AMDEX_PROPERTIES: institution.properties
+STARTUP_DELAY: 3000
+</pre>
+<!-- l. 112 --><p class='nopar'>
+</p>
+   <h4 class='subsectionHead' id='start-the-application'><span class='titlemark'>2.4   </span> <a id='x1-60002.4'></a>Start the application</h4>
+<!-- l. 114 --><p class='noindent'>The command to startup the system is: ”docker compose -f docker-compose-vu.yml
+up”. It is advice to put this in a script for easy use (up.bat / up.sh)
+</p><!-- l. 116 --><p class='noindent'>
+</p>
+   <h3 class='sectionHead' id='main-components'><span class='titlemark'>3   </span> <a id='x1-70003'></a>Main Components</h3>
+<!-- l. 117 --><p class='noindent'>
+</p>
+   <h4 class='subsectionHead' id='amdexproperties'><span class='titlemark'>3.1   </span> <a id='x1-80003.1'></a>AmdexProperties</h4>
+<!-- l. 118 --><p class='noindent'>The AmdexProperties object contains all the properties needed to run the fieldlab
+components, and can also be used to access properties needed for the specific
+implementation of the node.
+</p><!-- l. 120 --><p class='indent'>   The Amdex Properties can contain single properties or classes with their
+initialization files.
+</p>
+   <h5 class='subsubsectionHead' id='required-properties'><span class='titlemark'>3.1.1   </span> <a id='x1-90003.1.1'></a>Required Properties</h5>
+                                                                  
+
+                                                                  
+   <pre class='verbatim' id='verbatim-6'>
 # Identity of this node
 node.identity.id = nodeId
 node.identity.member = memberId
@@ -62,27 +195,134 @@ certificates.store.class = eu.amdexfieldlab.prototype.kafka.KafkaPublicCertifi
 certificates.store.topic = Certificates
 
 </pre>
-<!-- l. 45 --><p class='nopar'>
+<!-- l. 145 --><p class='nopar'>
 </p>
-   <h4 class='subsectionHead' id='backbone'><span class='titlemark'>2.2   </span> <a id='x1-50002.2'></a>Backbone</h4>
-<!-- l. 47 --><p class='noindent'>
+   <h4 class='subsectionHead' id='backbone'><span class='titlemark'>3.2   </span> <a id='x1-100003.2'></a>Backbone</h4>
+<!-- l. 147 --><p class='noindent'>
 </p>
-   <h4 class='subsectionHead' id='certificatemanager'><span class='titlemark'>2.3   </span> <a id='x1-60002.3'></a>CertificateManager</h4>
-<!-- l. 48 --><p class='noindent'>
+   <h4 class='subsectionHead' id='certificatemanager'><span class='titlemark'>3.3   </span> <a id='x1-110003.3'></a>CertificateManager</h4>
+<!-- l. 148 --><p class='noindent'>
 </p>
-   <h3 class='sectionHead' id='helper-components'><span class='titlemark'>3   </span> <a id='x1-70003'></a>Helper Components</h3>
+   <h3 class='sectionHead' id='helper-components'><span class='titlemark'>4   </span> <a id='x1-120004'></a>Helper Components</h3>
                                                                   
 
                                                                   
-<!-- l. 49 --><p class='noindent'>
+<!-- l. 150 --><p class='noindent'>
 </p>
-   <h4 class='subsectionHead' id='certificateutils'><span class='titlemark'>3.1   </span> <a id='x1-80003.1'></a>CertificateUtils</h4>
-<!-- l. 50 --><p class='noindent'>
+   <h3 class='sectionHead' id='euamdexutil'><span class='titlemark'>5   </span> <a id='x1-130005'></a>eu.amdex.util</h3>
+<!-- l. 151 --><p class='noindent'>Contains helper functions and object for common activities.
 </p>
-   <h4 class='subsectionHead' id='asynchronousmanager'><span class='titlemark'>3.2   </span> <a id='x1-90003.2'></a>AsynchronousManager</h4>
-<!-- l. 51 --><p class='noindent'>
+   <h4 class='subsectionHead' id='constants'><span class='titlemark'>5.1   </span> <a id='x1-140005.1'></a>Constants</h4>
+<!-- l. 153 --><p class='noindent'>Contains some useful constants. Specifically for handling null and undefined values in
+Data, which should not be interpreted as null values by the code. These
+can be assigned to an Any, even though a null can not be assigned to an
+Any.
 </p>
-   <h4 class='subsectionHead' id='json'><span class='titlemark'>3.3   </span> <a id='x1-100003.3'></a>Json</h4>
+   <h4 class='subsectionHead' id='object-asynchronousmanager'><span class='titlemark'>5.2   </span> <a id='x1-150005.2'></a>object AsynchronousManager</h4>
+<!-- l. 155 --><p class='noindent'>Contains a simple Thread pool, and allows asynchronous running of Runnables and
+Lambdas. Care should be taken to not reuse a threads after the lambda or the
+Runnable.run() method has finished, since at that point it is put back in the Thread
+pool.
+</p>
+   <h4 class='subsectionHead' id='exceptionutils'><span class='titlemark'>5.3   </span> <a id='x1-160005.3'></a>ExceptionUtils</h4>
+<!-- l. 157 --><p class='noindent'>Contains methods to handle expected exceptions. The most useful being
+ignoreException, which returns null when there is an exception, and
+ignoreExceptionBoolean, which returns false when there is an exception.
+<br class='newline' />
+                                                                  
+
+                                                                  
+</p>
+   <pre class='verbatim' id='verbatim-7'>
+Example:
+val x : Any = "ABC"
+val y : Int? = ignoreException {x as Int}
+
+result: y = null
+</pre>
+<!-- l. 164 --><p class='nopar'>
+</p>
+   <h4 class='subsectionHead' id='log'><span class='titlemark'>5.4   </span> <a id='x1-170005.4'></a>Log</h4>
+<!-- l. 166 --><p class='noindent'>Contains global functions for logging, the logger that is used can be replaced during
+runtime. The system starts with a logger which writes to the console, and remembers
+everything that is logged. Once the desired logger component is loaded, the default
+log is replaced with this, and the desired logger can retrieve the earlier messages to
+also log itself<br class='newline' />The methods in this file all call the same method in the active logger
+</p>
+   <h5 class='subsubsectionHead' id='class-logmonitor'><span class='titlemark'>5.4.1   </span> <a id='x1-180005.4.1'></a>class LogMonitor</h5>
+<!-- l. 169 --><p class='noindent'>Connects the active thread to a specific named log
+</p>
+   <h5 class='subsubsectionHead' id='method-todo'><span class='titlemark'>5.4.2   </span> <a id='x1-190005.4.2'></a>method todo</h5>
+<!-- l. 171 --><p class='noindent'>Writes a todo message to the log without throwing an exception
+</p>
+   <h4 class='subsectionHead' id='globalfunctions'><span class='titlemark'>5.5   </span> <a id='x1-200005.5'></a>GlobalFunctions</h4>
+<!-- l. 173 --><p class='noindent'>Contains simple helper functions
+</p>
+   <h5 class='subsubsectionHead' id='function-mutablemapofskipnullvalues'><span class='titlemark'>5.5.1   </span> <a id='x1-210005.5.1'></a>function mutableMapOfSkipNullValues</h5>
+<!-- l. 175 --><p class='noindent'>Creates a MutableMap of the pairs without any pair which has a null value as its
+key
+                                                                  
+
+                                                                  
+</p>
+   <h5 class='subsubsectionHead' id='function-mapofskipnullvalues'><span class='titlemark'>5.5.2   </span> <a id='x1-220005.5.2'></a>function mapOfSkipNullValues</h5>
+<!-- l. 177 --><p class='noindent'>Creates a Map of the pairs without any pair which has a null value as its
+key
+</p>
+   <h5 class='subsubsectionHead' id='function-cast'><span class='titlemark'>5.5.3   </span> <a id='x1-230005.5.3'></a>function cast</h5>
+<!-- l. 179 --><p class='noindent'>Does a checked cast<br class='newline' />
+                                                                  
+
+                                                                  
+</p>
+   <pre class='verbatim' id='verbatim-8'>
+Example:
+val x : Any = 10
+val y : Int = cast(x)
+val z = cast(x) as Int
+</pre>
+<!-- l. 185 --><p class='nopar'>
+</p>
+   <h4 class='subsectionHead' id='mappedset-and-imappedset'><span class='titlemark'>5.6   </span> <a id='x1-240005.6'></a>MappedSet and IMappedSet</h4>
+<!-- l. 187 --><p class='noindent'>Turns a Collection of objects into a map, where the key is calculated based on the
+object.<br class='newline' />Use the refresh functions when the contents of objects are changed in a way that
+changes its key.
+</p>
+   <h4 class='subsectionHead' id='preparedstatementextensions'><span class='titlemark'>5.7   </span> <a id='x1-250005.7'></a>PreparedStatementExtensions</h4>
+<!-- l. 190 --><p class='noindent'>Contains extension functions to PreparedStatement
+</p>
+   <h5 class='subsubsectionHead' id='function-setall'><span class='titlemark'>5.7.1   </span> <a id='x1-260005.7.1'></a>function setAll</h5>
+<!-- l. 192 --><p class='noindent'>Assigns values to the question marks in the PreparedStatement in the order of the
+question marks, and deals with using the correct function in PreparedStatement
+</p>
+   <h5 class='subsubsectionHead' id='function-setany'><span class='titlemark'>5.7.2   </span> <a id='x1-270005.7.2'></a>function setAny</h5>
+<!-- l. 194 --><p class='noindent'>Assigns values to a specific question mark in the PreparedStatement, and deals with
+using the correct function in PreparedStatement
+</p>
+   <h4 class='subsectionHead' id='resultsetextensions'><span class='titlemark'>5.8   </span> <a id='x1-280005.8'></a>ResultSetExtensions</h4>
+<!-- l. 196 --><p class='noindent'>Contains extension functions to ResultSet
+</p>
+   <h5 class='subsubsectionHead' id='foreach-and-foreachindexed'><span class='titlemark'>5.8.1   </span> <a id='x1-290005.8.1'></a>forEach and forEachIndexed</h5>
+<!-- l. 198 --><p class='noindent'>Executes a lambda on each entry in the resultset.
+                                                                  
+
+                                                                  
+</p>
+   <h4 class='subsectionHead' id='todataset'><span class='titlemark'>5.9   </span> <a id='x1-300005.9'></a>toDataSet</h4>
+<!-- l. 200 --><p class='noindent'>Turns the ResultSet in a DataSet, which can be stored, manipulated and/or
+transferred to another Node.
+</p>
+   <h4 class='subsectionHead' id='stringextensions'><span class='titlemark'>5.10   </span> <a id='x1-310005.10'></a>StringExtensions</h4>
+<!-- l. 202 --><p class='noindent'>Constains extension functions to String
+</p>
+   <h5 class='subsubsectionHead' id='dropincluding'><span class='titlemark'>5.10.1   </span> <a id='x1-320005.10.1'></a>dropIncluding</h5>
+<!-- l. 204 --><p class='noindent'>Removes the first or last characters of a String until it finds a specific substring. This
+substring is also removed.
+</p>
+   <h4 class='subsectionHead' id='certificateutils'><span class='titlemark'>5.11   </span> <a id='x1-330005.11'></a>CertificateUtils</h4>
+<!-- l. 206 --><p class='noindent'>
+</p>
+   <h4 class='subsectionHead' id='json'><span class='titlemark'>5.12   </span> <a id='x1-340005.12'></a>Json</h4>
     
 </body> 
 </html>
